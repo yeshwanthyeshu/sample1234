@@ -74,22 +74,58 @@ wordcloud(word_freq$term,word_freq$num,max.words = 50, colors = 'red')
 library(qdap)
 freq <- freq_terms(tr$currency,top = 5, at.least = 2,stopwords = 'Top200Words')
 plot(freq)
+####################################
+# lets us have another freq_terms 
+# so following code
+tr2 <- train[1001:2000,]
+# the below code successfully removed the special charecters 
+tr2$desc <- sapply(tr2$desc,function(row) iconv(row, "latin1", "ASCII", sub=""))
+# creating the vector scource for corpus
+desc2_source <- VectorSource(tr2$desc)
+# making a corpus vector
+desc2_cop <- VCorpus(desc2_source)
+# cleaning the corpus with out clean_corpus function
+# i.e text making mining to the corpus
+desc2_cop <- clean_corpus(desc2_cop)
+# the below code succefully converts in to TDM
+desc2_tdm <- TermDocumentMatrix(desc2_cop)
+# converting the tdm to matrix of dim nrow,2
+m2 <- as.matrix(desc2_tdm)
+orders2_words <- sort(rowSums(m2),decreasing = TRUE)
+# visualizing the words frequency
+barplot(orders2_words[1:10],col='tan',las = 2)
+#mean(orders_words == orders2_words)
+##########################
+# by now we have two word freq matrices 
+# i.e orders_words and orders2_words
+# i.e desc_tdm and desc2tdm
+all_desc1 <- paste(tr$desc,collapse = " ")
+all_desc2 <- paste(tr2$desc,collapse = " ")
+all_desc <- c(all_desc1,all_desc2)
+all_vs <- VectorSource(all_desc)
+all_cr <- VCorpus(all_vs)
+all_cl <- clean_corpus(all_cr)
+all_tdm <- TermDocumentMatrix(all_cl)
+all_m <- as.matrix(all_tdm)
+# this is the cloud with both data
+commonality.cloud(all_m,max.words = 100,colors = "blue")
 
+# for comparision cloud
+colnames(all_tdm) <- c("first","second")
+all_m <- as.matrix(all_tdm)
+comparison.cloud(all_m,colors = c("orange","green"),max.words = 100)
 
-#############
-library(qdap)
-#install.packages('qdap')
-desc_direct <- wfm(tr$desc)
-head(desc_direct)
-nrow(desc_direct)
-ncol(desc_direct)
-desc_fre <- wfm(desc_cop)
-head(desc_fre)
-max(desc_fre)
-nrow(desc_fre)
-ncol(desc_fre)
+#for pyramind plot
+# extracting the common words
+common_words <- subset(all_m, all_m[,1] > 0 & all_m[,2] > 0)
+diff <- abs(common_words[,1] - common_words[,2])
+common_words <- cbind(common_words,diff)
+common_words <- common_words[order(common_words[,3],decreasing = TRUE),]
+top25df <- data.frame(x = common_words[1:25,1],y=common_words[1:25,2],labels = rownames(common_words[1:25,]))
 
-ord <- sort(desc_fre,decreasing = TRUE)
-head(ord)
-# the above code only finds the number of word freq 
-#######
+# drawing the pyramid
+library(plotrix)
+pyramid.plot(top25df$x,top25df$y,labels = top25df$labels,gap = 8,top.labels = c('first','words','second'),main='words in common',raxlab = NULL,unit = NULL)
+
+# lets try the word network
+word_associate(head(tr2$desc,50),match.string = c('help'),stopwords = c(Top100Words),network.plot = TRUE,cloud.colors = c("grey","black"))
